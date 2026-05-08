@@ -1,0 +1,27 @@
+# Reproduces the synthetic baseline numbers in README
+source: synthetic_10class
+image_size: 32
+
+# Architecture
+n_orientations: 8
+n_scales: 2
+patch_size: 4
+embed_dim: 64
+encoder_layers: 3
+predictor_layers: 2
+
+# JEPA pretraining
+n_pretrain_max: 2000
+pretrain_epochs: 12
+pretrain_batch_size: 64
+pretrain_lr: 1.0e-3
+use_augmentation: false   # IMPORTANT: hurts on synthetic data
+use_block_masks: false
+ema_init: 0.95
+ema_final: 0.999
+
+# Evaluation
+n_per_class_values: [5, 10, 20, 50]
+readouts: [linear, attn_pool]
+seeds: 6
+n_per_class_val: 50

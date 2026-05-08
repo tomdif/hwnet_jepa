@@ -1,0 +1,31 @@
+# STL-10: 10 classes at 96x96 with 100K unlabeled images explicitly designed for SSL.
+# This is the dataset the JEPA story is most likely to win cleanly on -
+# real natural images, plenty of unlabeled data, designed for the use case.
+source: stl10
+image_size: 64           # downsampled from 96 for speed; use 96 if you have GPU budget
+data_root: ./data
+
+# Architecture
+n_orientations: 8
+n_scales: 3              # one more scale for the larger image
+patch_size: 8
+embed_dim: 192
+encoder_layers: 6
+predictor_layers: 4
+
+# JEPA pretraining (use the unlabeled split)
+n_pretrain_max: 100000
+pretrain_epochs: 200
+pretrain_batch_size: 256
+pretrain_lr: 1.5e-3
+use_augmentation: true
+use_block_masks: true
+ema_init: 0.95
+ema_final: 0.999
+
+# Evaluation (STL-10 train set has 500/class, test has 800/class)
+n_per_class_values: [10, 50, 200, 500]
+readouts: [linear, attn_pool, knn]
+seeds: 4
+n_per_class_val: 800
+fine_tune_at: [500]

@@ -1,0 +1,29 @@
+# Recommended starting config for CIFAR-10
+source: cifar10
+image_size: 32
+data_root: ./data
+
+# Architecture
+n_orientations: 8
+n_scales: 2
+patch_size: 4
+embed_dim: 128            # bigger than synthetic to handle real-image complexity
+encoder_layers: 4
+predictor_layers: 2
+
+# JEPA pretraining
+n_pretrain_max: 50000     # use all of CIFAR-10 train set
+pretrain_epochs: 100      # more epochs for real data
+pretrain_batch_size: 128
+pretrain_lr: 1.0e-3
+use_augmentation: true    # crop+flip+jitter helps on natural images
+use_block_masks: true     # canonical I-JEPA recipe
+ema_init: 0.95
+ema_final: 0.999
+
+# Evaluation
+n_per_class_values: [10, 50, 200, 1000, 5000]
+readouts: [linear, attn_pool, knn]
+seeds: 4
+n_per_class_val: 1000     # use all CIFAR-10 test set per class
+fine_tune_at: [1000, 5000]
