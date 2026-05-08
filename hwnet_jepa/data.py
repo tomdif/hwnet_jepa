@@ -153,6 +153,78 @@ def load_stl10(data_root: str = "./data", image_size: int = 32,
     return pretrain_images, train_x, train_y, val_x, val_y, 10
 
 
+# ----------------------------- HuggingFace datasets ----------------------------- #
+
+
+def load_hf(hf_dataset: str = "jxie/stl10", data_root: str = "./data",
+            image_size: int = 64,
+            n_per_class_train: Optional[int] = None,
+            n_per_class_val: int = 200,
+            n_pretrain_max: Optional[int] = 10000,
+            pretrain_split: Optional[str] = None,
+            train_split: str = "train",
+            val_split: str = "test",
+            image_column: str = "image",
+            label_column: str = "label"):
+    """Load any image-classification dataset from the HuggingFace Hub.
+
+    Designed primarily for STL-10-style SSL: a large unlabeled split for
+    pretraining plus labeled train/test splits for downstream eval. Defaults
+    target jxie/stl10 (has 100K-image 'unlabeled' split). Other datasets work
+    too — pass `pretrain_split=None` to fall back to the train split for SSL.
+
+    hf_dataset: HF Hub repo id (e.g. 'jxie/stl10', 'uoft-cs/cifar10')
+    pretrain_split: split name to use as the unlabeled pretraining pool. If
+        None, auto-pick: 'unlabeled' if present, else `train_split`.
+    """
+    from datasets import load_dataset as hf_load_dataset
+    cache_dir = os.path.join(data_root, "hf_cache")
+    Path(cache_dir).mkdir(parents=True, exist_ok=True)
+
+    ds = hf_load_dataset(hf_dataset, cache_dir=cache_dir)
+
+    if pretrain_split is None:
+        pretrain_split = "unlabeled" if "unlabeled" in ds else train_split
+
+    n_classes = len(ds[train_split].features[label_column].names)
+
+    transform = T.Compose([T.Resize((image_size, image_size)), T.ToTensor()])
+
+    def _hf_to_tensors(split, n_max=None, with_labels=True):
+        n = len(split) if n_max is None else min(n_max, len(split))
+        if n_max is not None and n_max < len(split):
+            indices = torch.randperm(len(split))[:n].tolist()
+        else:
+            indices = range(n)
+        imgs, labs = [], []
+        for i in indices:
+            row = split[int(i)]
+            img = row[image_column]
+            if hasattr(img, "convert"):
+                img = img.convert("RGB")
+            imgs.append(transform(img))
+            if with_labels:
+                labs.append(int(row[label_column]))
+        imgs = torch.stack(imgs, dim=0)
+        if with_labels:
+            return imgs, torch.tensor(labs, dtype=torch.long)
+        return imgs
+
+    pretrain_images = _hf_to_tensors(
+        ds[pretrain_split], n_max=n_pretrain_max, with_labels=False)
+
+    train_x, train_y = _hf_to_tensors(ds[train_split], with_labels=True)
+    if n_per_class_train is not None:
+        train_x, train_y = make_balanced_subset(
+            train_x, train_y, n_per_class_train, n_classes, seed=0)
+    val_x, val_y = _hf_to_tensors(ds[val_split], with_labels=True)
+    if n_per_class_val is not None:
+        val_x, val_y = make_balanced_subset(
+            val_x, val_y, n_per_class_val, n_classes, seed=1)
+
+    return pretrain_images, train_x, train_y, val_x, val_y, n_classes
+
+
 # ----------------------------- ImageFolder (custom local data) ----------------------------- #
 
 
@@ -329,5 +401,7 @@ def load_dataset(source: str, **kwargs):
         return load_stl10(**kwargs)
     elif source == "imagefolder":
         return load_imagefolder(**kwargs)
+    elif source == "hf":
+        return load_hf(**kwargs)
     else:
         raise ValueError(f"Unknown source: {source}")

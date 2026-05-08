@@ -38,6 +38,8 @@ from hwnet_jepa.train import jepa_pretrain, linear_probe
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", type=str, default="synthetic_10class")
+    parser.add_argument("--hf_dataset", type=str, default="jxie/stl10",
+                        help="HF Hub repo id when --source hf")
     parser.add_argument("--data_root", type=str, default="./data")
     parser.add_argument("--image_size", type=int, default=32)
     parser.add_argument("--out_dir", type=str, default="./results")
@@ -83,11 +85,13 @@ def main():
     print(f"Source: {args.source}, image size: {args.image_size}")
 
     # Load dataset
+    extra_kwargs = {"hf_dataset": args.hf_dataset} if args.source == "hf" else {}
     pretrain_images, train_x, train_y, val_x, val_y, n_classes = load_dataset(
         args.source, data_root=args.data_root, image_size=args.image_size,
         n_per_class_train=args.n_per_class_train_pool,
         n_per_class_val=args.n_per_class_val,
-        n_pretrain_max=args.n_pretrain_max)
+        n_pretrain_max=args.n_pretrain_max,
+        **extra_kwargs)
     print(f"Pretrain pool: {pretrain_images.shape}")
     print(f"Train pool: {train_x.shape}, Val: {val_x.shape}, n_classes: {n_classes}")
 
