@@ -130,7 +130,14 @@ def jepa_pretrain(model: IJEPA, images: torch.Tensor,
             preds_flat = preds.reshape(-1, preds.shape[-1])
             std_preds = torch.sqrt(preds_flat.var(dim=0) + 1e-4)
             var_loss = F.relu(var_target - std_preds).mean()
-            loss = pred_loss + var_loss_weight * var_loss
+            # Also penalise low-variance CONTEXT encoder features so the EMA target
+            # can't drift to a constant. Forwarding context_encoder full-pass with
+            # gradients enabled (separate from the no-grad target_encoder pass).
+            ctx_full = model.context_encoder.forward_full(xb)
+            ctx_flat = ctx_full.reshape(-1, ctx_full.shape[-1])
+            std_ctx = torch.sqrt(ctx_flat.var(dim=0) + 1e-4)
+            ctx_var_loss = F.relu(var_target - std_ctx).mean()
+            loss = pred_loss + var_loss_weight * (var_loss + ctx_var_loss)
             optimiser.zero_grad(); loss.backward()
             torch.nn.utils.clip_grad_norm_(
                 list(model.context_encoder.parameters()) +

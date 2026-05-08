@@ -53,6 +53,8 @@ def main():
     parser.add_argument("--use_block_masks", action="store_true")
     parser.add_argument("--ema_init", type=float, default=0.95)
     parser.add_argument("--ema_final", type=float, default=0.999)
+    parser.add_argument("--var_loss_weight", type=float, default=1.0,
+                        help="Weight on VICReg-style variance loss (collapse prevention)")
 
     # Architecture
     parser.add_argument("--n_orientations", type=int, default=8)
@@ -135,6 +137,7 @@ def main():
             use_augmentation=args.use_augmentation,
             use_block_masks=args.use_block_masks,
             ema_init=args.ema_init, ema_final=args.ema_final,
+            var_loss_weight=args.var_loss_weight,
             device=args.device)
         print(f"  pretraining took {time.time()-t0:.0f}s")
         torch.save(model.context_encoder.state_dict(), encoder_path)
