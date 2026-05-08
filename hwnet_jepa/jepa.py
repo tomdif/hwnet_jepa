@@ -162,6 +162,7 @@ class IJEPA(nn.Module):
     def __init__(self, n_orientations: int = 8, n_scales: int = 2,
                  patch_size: int = 4, embed_dim: int = 64,
                  encoder_layers: int = 3, predictor_layers: int = 2,
+                 encoder_n_heads: int = 4, predictor_n_heads: int = 3,
                  grid_size: int = 8, ema_decay: float = 0.996,
                  use_end_stopped: bool = False, input_channels: int = 3):
         super().__init__()
@@ -172,7 +173,8 @@ class IJEPA(nn.Module):
         self.context_encoder = JEPAEncoder(
             n_orientations=n_orientations, n_scales=n_scales,
             patch_size=patch_size, embed_dim=embed_dim,
-            n_layers=encoder_layers, grid_size=grid_size,
+            n_layers=encoder_layers, n_heads=encoder_n_heads,
+            grid_size=grid_size,
             use_end_stopped=use_end_stopped, input_channels=input_channels)
         self.target_encoder = copy.deepcopy(self.context_encoder)
         for p in self.target_encoder.parameters():
@@ -180,7 +182,8 @@ class IJEPA(nn.Module):
 
         self.predictor = JEPAPredictor(
             embed_dim=embed_dim, predictor_dim=embed_dim * 3 // 4,
-            n_layers=predictor_layers, n_patches=self.n_patches)
+            n_layers=predictor_layers, n_heads=predictor_n_heads,
+            n_patches=self.n_patches)
 
     @torch.no_grad()
     def update_target(self):

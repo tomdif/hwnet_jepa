@@ -61,6 +61,8 @@ def main():
     parser.add_argument("--embed_dim", type=int, default=64)
     parser.add_argument("--encoder_layers", type=int, default=3)
     parser.add_argument("--predictor_layers", type=int, default=2)
+    parser.add_argument("--encoder_n_heads", type=int, default=4)
+    parser.add_argument("--predictor_n_heads", type=int, default=3)
     parser.add_argument("--use_end_stopped", action="store_true")
 
     # Evaluation
@@ -106,6 +108,8 @@ def main():
                   patch_size=args.patch_size, embed_dim=args.embed_dim,
                   encoder_layers=args.encoder_layers,
                   predictor_layers=args.predictor_layers,
+                  encoder_n_heads=args.encoder_n_heads,
+                  predictor_n_heads=args.predictor_n_heads,
                   grid_size=grid_size, ema_decay=args.ema_init,
                   use_end_stopped=args.use_end_stopped)
     n_params = count_params(model)
