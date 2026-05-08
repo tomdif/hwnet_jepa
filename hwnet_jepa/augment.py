@@ -24,14 +24,15 @@ def augment_batch(images: torch.Tensor,
                   contrast_range: tuple = (0.8, 1.2)) -> torch.Tensor:
     """Random crop+resize, hflip, brightness/contrast jitter."""
     B, C, H, W = images.shape
+    device = images.device
     out = images.clone()
 
     if do_flip:
-        flip_mask = torch.rand(B) < 0.5
+        flip_mask = torch.rand(B, device=device) < 0.5
         if flip_mask.any():
             out[flip_mask] = torch.flip(out[flip_mask], dims=[-1])
 
-    crop_scales = torch.empty(B).uniform_(crop_min, crop_max)
+    crop_scales = torch.empty(B, device=device).uniform_(crop_min, crop_max)
     crop_sizes = (crop_scales * H).round().clamp(min=8).int()
     cropped = []
     for i in range(B):
@@ -43,8 +44,8 @@ def augment_batch(images: torch.Tensor,
         cropped.append(patch)
     out = torch.cat(cropped, dim=0)
 
-    brightness = torch.empty(B, 1, 1, 1).uniform_(*brightness_range)
-    contrast = torch.empty(B, 1, 1, 1).uniform_(*contrast_range)
+    brightness = torch.empty(B, 1, 1, 1, device=device).uniform_(*brightness_range)
+    contrast = torch.empty(B, 1, 1, 1, device=device).uniform_(*contrast_range)
     mean = out.mean(dim=(-2, -1), keepdim=True)
     out = (out - mean) * contrast + mean * brightness
     return out.clamp(0, 1)
