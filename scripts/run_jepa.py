@@ -55,6 +55,8 @@ def main():
     parser.add_argument("--ema_final", type=float, default=0.999)
     parser.add_argument("--var_loss_weight", type=float, default=1.0,
                         help="Weight on VICReg-style variance loss (collapse prevention)")
+    parser.add_argument("--checkpoint_every", type=int, default=0,
+                        help="Save encoder every N epochs during pretraining (0 = off)")
 
     # Architecture
     parser.add_argument("--n_orientations", type=int, default=8)
@@ -138,6 +140,8 @@ def main():
             use_block_masks=args.use_block_masks,
             ema_init=args.ema_init, ema_final=args.ema_final,
             var_loss_weight=args.var_loss_weight,
+            checkpoint_path=str(encoder_path),
+            checkpoint_every=args.checkpoint_every,
             device=args.device)
         print(f"  pretraining took {time.time()-t0:.0f}s")
         torch.save(model.context_encoder.state_dict(), encoder_path)

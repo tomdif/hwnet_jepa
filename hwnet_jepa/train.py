@@ -73,6 +73,8 @@ def jepa_pretrain(model: IJEPA, images: torch.Tensor,
                   use_block_masks: bool = False,
                   ema_init: float = 0.95, ema_final: float = 0.999,
                   var_loss_weight: float = 1.0, var_target: float = 1.0,
+                  checkpoint_path: Optional[str] = None,
+                  checkpoint_every: int = 0,
                   device: str = "cpu", verbose: bool = True):
     """JEPA pretraining with VICReg-style variance regularization.
 
@@ -164,6 +166,10 @@ def jepa_pretrain(model: IJEPA, images: torch.Tensor,
             "pred_var": epoch_pred_var / n_batches,
             "tgt_var": epoch_tgt_var / n_batches,
         })
+        if checkpoint_path and checkpoint_every > 0 and (epoch + 1) % checkpoint_every == 0:
+            torch.save(model.context_encoder.state_dict(), checkpoint_path)
+            if verbose:
+                print(f"  [checkpoint] saved encoder @ epoch {epoch+1} -> {checkpoint_path}")
     return model, history
 
 
