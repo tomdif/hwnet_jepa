@@ -43,30 +43,49 @@ class RetinalLGN(nn.Module):
     """ON and OFF channel preprocessing via DoG filters.
 
     For RGB input we first compute luminance (BT.601), then apply ON and OFF
-    DoG filters. With rectify=True (default) we apply half-wave rectification
-    to mirror separated ON/OFF cell populations. With rectify=False we keep
-    signed responses; useful when feeding sparse-coding pretraining where you
-    want full signal magnitude.
+    DoG filters. With learnable=True the DoG sigmas adapt to image statistics;
+    the kernel structure stays a DoG, so the bio prior is preserved.
     """
     def __init__(self, in_channels: int = 3, kernel_size: int = 7,
                  sigma_center: float = 0.8, sigma_surround: float = 1.6,
-                 rectify: bool = True):
+                 rectify: bool = True, learnable: bool = True):
         super().__init__()
         self.in_channels = in_channels
         self.rectify = rectify
-        on_kernel = make_dog_kernel(kernel_size, sigma_center, sigma_surround, "on")
-        off_kernel = make_dog_kernel(kernel_size, sigma_center, sigma_surround, "off")
-        self.register_buffer("on_kernel", on_kernel.view(1, 1, kernel_size, kernel_size))
-        self.register_buffer("off_kernel", off_kernel.view(1, 1, kernel_size, kernel_size))
+        self.kernel_size = kernel_size
         self.padding = kernel_size // 2
+        coords = torch.arange(kernel_size, dtype=torch.float32) - (kernel_size - 1) / 2.0
+        yy, xx = torch.meshgrid(coords, coords, indexing="ij")
+        self.register_buffer("r2", (xx ** 2 + yy ** 2).unsqueeze(0).unsqueeze(0))
+        log_sc = torch.log(torch.tensor(sigma_center))
+        log_ss = torch.log(torch.tensor(sigma_surround))
+        if learnable:
+            self.log_sigma_center = nn.Parameter(log_sc)
+            self.log_sigma_surround = nn.Parameter(log_ss)
+        else:
+            self.register_buffer("log_sigma_center", log_sc)
+            self.register_buffer("log_sigma_surround", log_ss)
+
+    def _build_kernels(self):
+        sc = torch.exp(self.log_sigma_center)
+        ss = torch.exp(self.log_sigma_surround)
+        g_c = torch.exp(-self.r2 / (2 * sc ** 2))
+        g_c = g_c / g_c.sum()
+        g_s = torch.exp(-self.r2 / (2 * ss ** 2))
+        g_s = g_s / g_s.sum()
+        on = (g_c - g_s)
+        on = on - on.mean()
+        off = -on
+        return on, off
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if x.shape[1] == 3:
             lum = 0.299 * x[:, 0:1] + 0.587 * x[:, 1:2] + 0.114 * x[:, 2:3]
         else:
             lum = x.mean(dim=1, keepdim=True)
-        on = F.conv2d(lum, self.on_kernel, padding=self.padding)
-        off = F.conv2d(lum, self.off_kernel, padding=self.padding)
+        on_kernel, off_kernel = self._build_kernels()
+        on = F.conv2d(lum, on_kernel, padding=self.padding)
+        off = F.conv2d(lum, off_kernel, padding=self.padding)
         if self.rectify:
             on = F.relu(on)
             off = F.relu(off)
